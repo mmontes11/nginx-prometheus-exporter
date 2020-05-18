@@ -1,16 +1,18 @@
-language: go
 sudo: required
-services:
-- docker
-go:
-- "1.14"
-script:
-- echo "Nginx Prometheus Exporter - commit:${TRAVIS_COMMIT}"
-- make test
-- make container DOCKER_BUILDKIT=0;
-before_install:
-- echo "PR Slug:${TRAVIS_PULL_REQUEST_SLUG}"
-- if [[ "${TRAVIS_PULL_REQUEST_SLUG}" == "nginxinc/nginx-prometheus-exporter" || "${TRAVIS_PULL_REQUEST}" == "false" ]]; then
-  wget https://github.com/fossas/fossa-cli/releases/download/v1.0.27/fossa-cli_1.0.27_linux_amd64.tar.gz && tar xzf fossa-cli_1.0.27_linux_amd64.tar.gz
-  && ./fossa init
-  && GO111MODULE=on FOSSA_API_KEY=${fossapush} ./fossa analyze -t nginx-prometheus-exporter -b ${TRAVIS_BRANCH}; fi
+stages:
+  - release
+jobs:
+  include:
+    - stage: release
+      if: tag IS present
+      before_install:
+        - curl -fsSL https://get.docker.com | sh
+        - echo '{"experimental":"enabled"}' | sudo tee /etc/docker/daemon.json
+        - mkdir -p $HOME/.docker
+        - echo '{"experimental":"enabled"}' | sudo tee $HOME/.docker/config.json
+        - sudo service docker start
+      install:
+        - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      script: make release
+      on:
+        tags: true
